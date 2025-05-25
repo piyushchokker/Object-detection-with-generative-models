@@ -3,18 +3,15 @@ import pyttsx3
 import pygame
 import pygame.camera
 import os
-import google.generativeai as genai
-import PIL
+from google import genai
+import cv2
 
+from dotenv import load_dotenv, dotenv_values
 
-pygame.camera.init()
-# Detect available cameras
-camlist = pygame.camera.list_cameras()
+load_dotenv()
 
-# Initialize the speech recognition engine
 recognizer = sr.Recognizer()
 
-# Initialize the text-to-speech engine
 engine = pyttsx3.init()
 
 
@@ -48,72 +45,64 @@ def recognize_speech():
         return None
 
 def say_hello():
-    if camlist:
-        # Initialize and start the camera
-        cam = pygame.camera.Camera(camlist[0], (1920, 1080))
-        cam.start()
 
-        # Capture a single image
-        image = cam.get_image()
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("Camera not accessible.")
+        return
 
-        # Save the image
-        pygame.image.save(image, "captured_image.jpg")
+    ret, frame = cap.read()
+    if ret:
+        cv2.imwrite("captured_image.jpg", frame)
+        print("Image captured successfully.")
     else:
-        print("No camera detected on the current device.")
+        print("Failed to capture image.")
+
+    cap.release()
 
 
 def vision_ai(arument = None):
-    os.environ['GOOGLE_API_KEY'] = "YOUR API KEY"
-    genai.configure(api_key = os.environ['GOOGLE_API_KEY'])
 
-    image = PIL.Image.open('.\captured_image.jpg')
-    vision_model = genai.GenerativeModel('gemini-pro-vision')
-    text_model=genai.GenerativeModel('gemini-pro')
+    client = genai.Client(api_key = os.getenv("GOOGLE_API_KEY"))
 
+    my_file = client.files.upload(file="captured_image.jpg")
+
+  
     if check_image_exists():
-        response = vision_model.generate_content([f":{arument}",image])
-    
-    
-    response_text=response.text
-
-    if check_image_exists():
+        response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=[my_file, arument ],
+            )
+        
         delete_image()
+    
 
-
-    print(response_text)
-    return response_text
+    return response.text
 
 def text_ai(arument = None):
-    os.environ['GOOGLE_API_KEY'] = "AIzaSyCUQJoNEnB-mInBtRnf3ooOhLOUUQMx9d0"
-    genai.configure(api_key = os.environ['GOOGLE_API_KEY'])
 
+    client = genai.Client(api_key= os.getenv('GOOGLE_API_KEY'))
 
-    text_model=genai.GenerativeModel('gemini-pro')
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=[f"{arument}"]
+    )
 
-    
-    response = text_model.generate_content(f"{arument}")
-   
-    response_text=response.text
-
-    print(response_text)
-    return response_text
+    return response.text
 
 
 def text_to_speech(text):
-    # Initialize the text-to-speech engine
+
     engine = pyttsx3.init()
 
-    # Set properties (optional)
-    engine.setProperty("rate", 150)  # Speed of speech (words per minute)
-    engine.setProperty("volume", 1.0)  # Volume (0.0 to 1.0)
 
-    # Convert text to speech
+    engine.setProperty("rate", 150)  # Speed of speech
+    engine.setProperty("volume", 1.0)
+
+
     engine.say(text)
 
-    # Save the speech as an audio file (optional)
     engine.save_to_file(text, "output.mp3")
-
-    # Run the engine
     engine.runAndWait()
 
 vision_list=["what is this","use camera","can u detect","what is there"]
