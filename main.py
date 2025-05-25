@@ -1,7 +1,5 @@
 import speech_recognition as sr
 import pyttsx3
-import pygame
-import pygame.camera
 import os
 from google import genai
 import cv2
